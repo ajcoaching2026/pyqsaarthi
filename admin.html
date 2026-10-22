@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PYQ Saarthi Admin</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/logo.webp">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .adm h1 { font-size: 24px; font-weight: 800; margin: 6px 0 2px; }
+  .adm .lead { color: var(--muted); font-size: 14.5px; }
+  .step { padding: 16px; margin-top: 14px; }
+  .step h2 { font-size: 17px; font-weight: 800; display: flex; gap: 8px; align-items: center; }
+  .step h2 .no { width: 26px; height: 26px; border-radius: 50%; background: var(--grad-blue); color: #fff; display: grid; place-items: center; font-size: 14px; flex: none; }
+  .step p { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .drop { display: block; margin-top: 12px; padding: 22px 14px; text-align: center; border: 2px dashed #93c5fd; border-radius: 16px; background: #f8fbff; color: var(--blue-dark); font-weight: 700; cursor: pointer; }
+  .drop input { display: none; }
+  .file { margin-top: 12px; padding: 12px; border: 1px solid var(--blue-line); border-radius: 14px; display: grid; gap: 8px; }
+  .file b { font-size: 15px; overflow-wrap: anywhere; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .row label, .full { font-size: 12.5px; color: var(--muted); display: grid; gap: 3px; }
+  select, .adm input[type=text], .adm input[type=number] { height: 40px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0 10px; font: inherit; font-size: 15px; background: #fff; color: var(--ink); width: 100%; }
+  .chk { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; margin-top: 10px; }
+  .chk input { margin-top: 4px; width: 18px; height: 18px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+  th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); font-weight: 700; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 800; padding: 1px 7px; border-radius: 999px; }
+  .pill.new { background: var(--green-wash); color: #15803d; }
+  .pill.upd { background: var(--amber-wash); color: var(--amber-ink); }
+  .errs { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #fff8f8; border: 1px solid #fecaca; font-size: 13.5px; color: #991b1b; max-height: 220px; overflow: auto; }
+  .ok-box { margin-top: 10px; padding: 12px; border-radius: 12px; background: #f0fdf4; border: 1px solid #86efac; font-size: 14px; line-height: 1.6; }
+  .ok-box code, .step code { background: #eef2ff; padding: 0 5px; border-radius: 5px; font-size: 13px; }
+  .tbl-wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main id="app" class="adm">
+  <header class="topbar">
+    <div class="brand"><img src="assets/logo.webp" alt="">
+      <div><div class="brand-name">PYQ<span>Saarthi</span> Admin</div><div class="brand-sub">Excel से नए प्रश्न जोड़ें</div></div></div>
+    <a class="tg-pill" href="./">वेबसाइट</a>
+  </header>
+
+  <section class="card step">
+    <h2><span class="no">1</span>Excel फ़ाइल चुनें</h2>
+    <p>एक या कई Excel एक साथ चुन सकते हैं। हर Excel में Template वाले कॉलम हों।</p>
+    <label class="drop">📂 यहाँ टैप करके Excel चुनें<input id="files" type="file" accept=".xlsx,.xls,.csv" multiple></label>
+    <div id="file-list"></div>
+    <label class="chk"><input type="checkbox" id="make-mocks"> <span><b>Mock Test भी बनाएँ</b> — जिन प्रश्नों में <code>Mock</code> कॉलम भरा है, उनसे Full Mock Test बनेगा।</span></label>
+    <div id="mock-opts" class="row hidden" style="margin-top:8px">
+      <label>सही उत्तर (+)<input type="number" id="m-pos" value="2" step="0.01"></label>
+      <label>गलत उत्तर (−)<input type="number" id="m-neg" value="0.66" step="0.01"></label>
+      <label>हर प्रश्न का समय (सेकंड)<input type="number" id="m-sec" value="72"></label>
+      <label>विकल्प E का नाम<input type="text" id="m-e" value="अनुत्तरित प्रश्न"></label>
+    </div>
+    <button class="btn btn-primary btn-block" id="check" style="margin-top:14px" disabled>जाँचें</button>
+  </section>
+
+  <section class="card step hidden" id="step2">
+    <h2><span class="no">2</span>जाँच का नतीजा</h2>
+    <div id="summary"></div>
+    <button class="btn btn-primary btn-block" id="download" style="margin-top:14px">⬇️ ZIP डाउनलोड करें</button>
+  </section>
+
+  <section class="card step hidden" id="step3">
+    <h2><span class="no">3</span>वेबसाइट पर डालें</h2>
+    <div class="ok-box">
+      1. डाउनलोड हुई ZIP खोलें — उसमें <code>data</code> फ़ोल्डर है।<br>
+      2. उसे GitHub Desktop वाले <b>pyqsetu-test</b> फ़ोल्डर में Paste करें → <b>Replace</b> चुनें।<br>
+      3. GitHub Desktop में <b>Commit to main</b> → <b>Push origin</b>।<br>
+      4. 1–2 मिनट बाद test वाली वेबसाइट खोलकर देखें। सही लगे तो यही <code>data</code> फ़ोल्डर <b>pyqsetu</b> (live) में भी डालें।
+    </div>
+  </section>
+
+  <p class="footer">पुराने विषय और टॉपिक अपने-आप सुरक्षित रहते हैं — सिर्फ़ Excel वाले टॉपिक नए बनते या बदलते हैं।</p>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
