@@ -952,5 +952,7 @@ document.addEventListener("click", async e => {
   renderInstall();
 });
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost") && !/claude|claudeusercontent/.test(location.hostname)) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").then(r => r.update()).catch(() => {}));
+  let swReloaded = false;   // naya version aate hi ek baar apne-aap refresh
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (swReloaded || !navigator.serviceWorker.controller) return; swReloaded = true; location.reload(); });
 }
