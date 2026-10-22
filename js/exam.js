@@ -21,6 +21,7 @@ const Exam = (() => {
 
   /* ---------- open a test from the route ---------- */
   async function open(kind, id, size) {
+    try { id = decodeURIComponent(id); } catch { }
     $app.innerHTML = `<div class="loading"><div class="spinner"></div>${L("टेस्ट तैयार हो रहा है…", "Preparing test…")}</div>`;
     let key = kind + "." + id;
     let base;
@@ -34,6 +35,29 @@ const Exam = (() => {
         pos: P.pos, neg: P.neg, optE: SITE.TOPIC_TEST.OPTION_E, minutes: P.min, pool: P.questions.map(q => ({ ...q, p: id })),
         insHi: `✍️ यह पेपर **RSSB** की परीक्षा **${P.fam}${P.title ? " (" + P.title + ")" : ""}** में **${fdate(P.date)}** को आया था।\n✍️ कुल प्रश्न = **'${P.n}'**${P.del ? ` (इनमें **${P.del} प्रश्न रद्द** — इनके अंक नहीं जुड़ेंगे)` : ""}\n✅ सही उत्तर = **'+${P.pos} अंक'**\n❌ गलत उत्तर = **'-${P.neg} अंक'**\n⌛ कुल समय = **'${P.min} मिनट'**\n${rule}\n\n**"----------------🎊 All the Best🎊----------------"**`,
         insEn: `✍️ This paper was asked in **RSSB ${P.fam}** on **${P.date.split("-").reverse().join(".")}**.\n✍️ Total Questions = **${P.n}**${P.del ? ` (${P.del} deleted — not counted)` : ""}\n✅ Correct = **+${P.pos}**, ❌ Wrong = **-${P.neg}**\n⌛ Time = **${P.min} minutes**\n${ruleEn}`
+      };
+    } else if (kind === "mock") {
+      const m = mockList().find(x => x.id === id);
+      if (!m) { toast(L("यह Mock नहीं मिला", "Mock not found")); return go("mock"); }
+      const saved0 = store.get("exam." + key);
+      const latest = [...m.papers].sort((a, b) => (b.date || "").localeCompare(a.date || ""))[0];
+      const L0 = await loadPaper(latest.id);
+      let pool = [];
+      if (!saved0) {
+        const Ps = await Promise.all(m.papers.map(p => loadPaper(p.id)));
+        const seen = new Set(), all = [];
+        Ps.forEach(P => P.questions.forEach(q => { if (q.d || !q.a) return; const g = q.g || q.id; if (seen.has(g)) return; seen.add(g); all.push({ ...q, p: P.id }); }));
+        for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+        pool = all.slice(0, Math.min(L0.n, all.length)).sort((a, b) => a.n - b.n);
+      }
+      const n = saved0 ? saved0.n : pool.length;
+      const mins = Math.round(L0.min * n / L0.n);
+      const nm0 = `${m.fam.name}${m.v ? " — " + m.v : ""}`;
+      base = {
+        key, kind, id, back: "mock", title: `${nm0} — PYQ Mock`, header: `${nm0} • PYQ Mock`,
+        pos: L0.pos, neg: L0.neg, optE: SITE.TOPIC_TEST.OPTION_E, minutes: mins, size: n, pool,
+        insHi: `✍️ यह **PYQ Mock** है — **${nm0}** के **${m.papers.length} असली पेपरों** से चुने गए प्रश्न (हर बार नए)।\n✍️ कुल प्रश्न = **'${n}'**\n✅ सही उत्तर = **'+${L0.pos} अंक'**\n❌ गलत उत्तर = **'-${L0.neg} अंक'**\n⌛ कुल समय = **'${mins} मिनट'**\n${rule}\n\n**"----------------🎊 All the Best🎊----------------"**`,
+        insEn: `✍️ This **PYQ Mock** is built from **${m.papers.length} real papers** of **${nm0}** (new questions every time).\n✍️ Total Questions = **${n}**\n✅ Correct = **+${L0.pos}**, ❌ Wrong = **-${L0.neg}**\n⌛ Time = **${mins} minutes**\n${ruleEn}`
       };
     } else {
       const meta = topicMeta(id);
@@ -110,6 +134,8 @@ const Exam = (() => {
   }
 
   function runExam() {
+    store.set("last", { kind: "test", key: S.key, h: location.hash.slice(1), title: S.title });
+    document.body.classList.add("in-test");
     renderQ();
     stopTimer();
     tick = setInterval(() => {
@@ -240,6 +266,8 @@ const Exam = (() => {
     stopTimer(); closeDrawer();
     document.querySelectorAll(".modal-mask").forEach(m => m.remove());
     S.submitted = true; S.submittedAt = Date.now(); S.result = calc(); save();
+    document.body.classList.remove("in-test");
+    try { const r = S.result; trackAnswer(false, r.correct + r.wrong, r.correct); S.qs.forEach((q, i) => { const a = S.ans[i]; if (!q.d && q.a && a >= 1 && a <= 4) noteWrong(q, a === q.a); }); } catch { }
     if (S.kind === "topic") {
       const hk = `th.${S.id}#${S.sig}`, h = store.get(hk, {});
       (h[S.chunk] = h[S.chunk] || []).push({ s: S.result.score, m: S.result.max, p: S.result.pct, d: today() });

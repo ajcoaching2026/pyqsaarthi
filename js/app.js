@@ -161,61 +161,85 @@ function selBar(s, { label, href, btn }) {
 const enc = h => encodeURIComponent(h);
 const famsParam = s => s ? s.split(",").filter(Boolean) : [];
 
-/* picker: org → exams (multi), years. Re-renders itself inside `el`. */
+/* Hindi words for exam search (exam names are in English) */
+const HI_ALIAS = [[/patwar/i, "पटवारी पटवार"], [/cet/i, "सीईटी"], [/12th/i, "12वीं बारहवीं"], [/grad/i, "स्नातक ग्रेजुएशन"], [/teacher|pri\.|primary|upper/i, "शिक्षक अध्यापक टीचर"],
+  [/ldc|jr\. ?assist|junior assist/i, "एलडीसी कनिष्ठ सहायक बाबू क्लर्क"], [/vdo|gram vikas/i, "वीडीओ ग्राम विकास अधिकारी"], [/animal|pashu/i, "पशु परिचर"], [/fourth|4th/i, "चतुर्थ श्रेणी"],
+  [/comp/i, "कंप्यूटर"], [/account/i, "लेखाकार अकाउंटेंट"], [/lab/i, "प्रयोगशाला लैब सहायक"], [/forest/i, "वनरक्षक वनपाल"], [/steno/i, "स्टेनो आशुलिपिक"], [/supervis/i, "पर्यवेक्षक सुपरवाइजर"],
+  [/nurse|anm|gnm|cho|nhm/i, "नर्स स्वास्थ्य"], [/prahari/i, "प्रहरी जेल"], [/driver/i, "चालक ड्राइवर"], [/conductor/i, "परिचालक कंडक्टर"], [/librar/i, "पुस्तकालय लाइब्रेरियन"],
+  [/survey/i, "सर्वेयर"], [/jamadar/i, "जमादार"], [/platoon/i, "प्लाटून कमांडर"], [/agri/i, "कृषि पर्यवेक्षक"], [/informatics/i, "सूचना सहायक"], [/hostel|hostal/i, "छात्रावास अधीक्षक"],
+  [/live ?stock/i, "पशुधन सहायक"], [/mine/i, "खनन फोरमैन"], [/sanskrit|sans/i, "संस्कृत"], [/hindi/i, "हिंदी"], [/eng/i, "अंग्रेज़ी इंग्लिश"]];
+const hiAlias = t => HI_ALIAS.filter(([r]) => r.test(t)).map(x => x[1]).join(" ");
+
+/* picker: search + org → exams (multi), years. Re-renders itself inside `el`.
+   opts.compact: each org shows its 5 most popular exams + "और"; opts.onFull opens full screen */
 function mountPicker(el, state, opts = {}) {
   const famCount = opts.famCount || null;          // {famId: n} when limited to one topic
+  const ui = { q: "", open: {} };
+  const famsOf = b => { let f = [...b.families].sort((a, c) => a.pop - c.pop || c.n - a.n); if (famCount) f = f.filter(x => famCount[x.id]).sort((a, c) => famCount[c.id] - famCount[a.id]); return f; };
+  const chip = f => `<button class="fchip ${state.fams.includes(f.id) ? "on" : ""}" data-pk="fam" data-v="${f.id}">${state.fams.includes(f.id) ? "✓ " : ""}${esc(f.short || f.name)}${famCount ? ` <small>${famCount[f.id]}</small>` : ` <small>${f.papers.length}</small>`}</button>`;
+  const norm = x => (x || "").toLowerCase().replace(/[\s.()\-]/g, "");
   const render = () => {
-    const boards = CATALOG.boards.map(b => {
-      if (b.soon) return `<div class="pk-org soon"><div class="pk-oh"><b>${b.name}</b><small>${L(b.full, b.full)}</small><span class="soon-b">${L("जल्द", "Soon")}</span></div>
-        <div class="fchips">${(CATALOG.soon[b.id] || []).map(x => `<button class="fchip dim" data-act="soon">${esc(x)}</button>`).join("")}</div></div>`;
-      let fams = [...b.families].sort((a, c) => a.pop - c.pop || c.n - a.n);
-      if (famCount) fams = fams.filter(f => famCount[f.id]).sort((a, c) => famCount[c.id] - famCount[a.id]);
-      if (!fams.length) return "";
-      return `<div class="pk-org"><div class="pk-oh"><b>${b.name}</b><small>${b.full}</small></div>
-        <div class="fchips">${fams.map(f => `<button class="fchip ${state.fams.includes(f.id) ? "on" : ""}" data-pk="fam" data-v="${f.id}">${state.fams.includes(f.id) ? "✓ " : ""}${esc(f.short || f.name)}${famCount ? ` <small>${famCount[f.id]}</small>` : ""}</button>`).join("")}</div></div>`;
-    }).join("");
+    const q = norm(ui.q);
+    let body;
+    if (q) {
+      const fams = allFamilies().filter(f => (!famCount || famCount[f.id]) && (norm(f.name + f.short + f.board.name + hiAlias(f.name + " " + f.short)).includes(q)));
+      const tops = famCount ? [] : Object.values(TOPIC).filter(t => t.n && t.name !== "अन्य" && (norm(t.name).includes(q) || norm(t.en).includes(q))).slice(0, 5);
+      body = `<div class="lab">${L(`"${esc(ui.q)}" से मिले`, `Matches for "${esc(ui.q)}"`)}</div>
+        ${fams.length ? `<div class="fchips">${fams.map(chip).join("")}</div>` : `<div class="pk-none">${L("कोई exam नहीं मिला", "No exam found")}</div>`}
+        ${tops.length ? `<div class="lab">🧩 ${L("टॉपिक", "TOPICS")}</div>${tops.map(t => `<button class="pk-top" data-pk="topic" data-v="${t.id}"><b>${esc(nm(t))}</b><small>${nm(t.s)} › ${nm(t.g)} • ${t.n} ${L("प्रश्न", "Qs")}</small><span>›</span></button>`).join("")}` : ""}`;
+    } else {
+      body = CATALOG.boards.map(b => {
+        if (b.soon) return `<div class="pk-org soon"><div class="pk-oh"><b>${b.name}</b><small>${L(b.full, b.full)}</small><span class="soon-b">${L("जल्द", "Soon")}</span></div>
+          <div class="fchips">${(CATALOG.soon[b.id] || []).slice(0, opts.compact ? 5 : 99).map(x => `<button class="fchip dim" data-act="soon">${esc(x)}</button>`).join("")}</div></div>`;
+        const fams = famsOf(b); if (!fams.length) return "";
+        const all = fams.every(f => state.fams.includes(f.id));
+        const showAll = !opts.compact || ui.open[b.id] || el.closest(".full");
+        const shown = showAll ? fams : fams.slice(0, 5);
+        return `<div class="pk-org"><div class="pk-oh"><b>${b.name}</b><small>${b.full}</small>
+            <button class="pk-all" data-pk="org" data-v="${b.id}">${all ? "☑" : "☐"} ${L("सभी", "All")} ${b.name}</button></div>
+          <div class="fchips">${shown.map(chip).join("")}${shown.length < fams.length ? `<button class="fchip more" data-pk="more" data-v="${b.id}">+ ${fams.length - shown.length} ${L("और", "more")} ›</button>` : ""}</div></div>`;
+      }).join("") + (opts.compact && opts.onFull && !el.closest(".full") ? `<button class="pk-fullbtn" data-pk="full">📋 ${L("सारे exam देखें (पूरी स्क्रीन)", "See all exams (full screen)")} ›</button>` : "");
+    }
     const years = `<div class="lab">${L("साल", "YEARS")}</div><div class="fchips">
       <button class="fchip ${!state.yrs.length && !state.last ? "on" : ""}" data-pk="yall">${L("सारे साल", "All years")}</button>
       ${LAST_OPTS.map(([n, hi, en]) => `<button class="fchip ${state.last === n ? "on" : ""}" data-pk="last" data-v="${n}">${L(hi, en)}</button>`).join("")}
       ${(opts.years || YEARS).map(y => `<button class="fchip ${state.yrs.includes(y) ? "on" : ""}" data-pk="yr" data-v="${y}">${y}</button>`).join("")}</div>`;
-    el.innerHTML = `<div class="pk-now"><small>${L("आपने चुना", "Selected")}</small><div class="sb-chips">${selHTML(state)}</div>
-        ${state.fams.length ? `<button class="link" data-pk="clear">${L("सब हटाएँ", "Clear")}</button>` : ""}</div>
-      <div class="lab">${L("परीक्षा चुनें (एक या ज़्यादा, किसी भी संस्था से)", "PICK EXAMS (one or more, any board)")}</div>
-      ${boards}${opts.noYears ? "" : years}
+    const hadFocus = document.activeElement && document.activeElement.id === "pk-q";
+    el.innerHTML = `<label class="pk-search"><span>🔍</span><input id="pk-q" type="search" value="${esc(ui.q)}" placeholder="${L("Exam या टॉपिक खोजें — जैसे पटवारी, CET, संधि", "Search exam or topic — e.g. Patwari, CET")}" autocomplete="off"></label>
+      <div class="pk-now"><small>${L("आपने चुना", "Selected")}</small><div class="sb-chips">${selHTML(state)}</div>
+        <span class="pk-acts"><button class="link" data-pk="selall">☑ ${L("सभी चुनें", "Select all")}</button>${state.fams.length ? `<button class="link red" data-pk="clear">✕ ${L("सब हटाएँ", "Clear")}</button>` : ""}</span></div>
+      ${body}${opts.noYears || q ? "" : years}
       ${opts.uniq !== undefined ? `<label class="chk-row"><input type="checkbox" data-pk="uniq" ${state.uniq ? "checked" : ""}> ${L("दोहराए गए प्रश्न सिर्फ़ एक बार", "Show repeated questions once")}</label>` : ""}`;
+    const inp = el.querySelector("#pk-q");
+    inp.oninput = () => { ui.q = inp.value; render(); };
+    if (hadFocus) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
     opts.onChange && opts.onChange(state);
   };
   el.onclick = e => {
     const b = e.target.closest("[data-pk]"); if (!b) return;
     const k = b.dataset.pk, v = b.dataset.v;
+    const pool = () => allFamilies().filter(f => !famCount || famCount[f.id]).map(f => f.id);
     if (k === "fam") toggleIn(state.fams, v);
     else if (k === "clear") state.fams = [];
+    else if (k === "selall") state.fams = pool();
+    else if (k === "org") { const ids = famsOf(CATALOG.boards.find(x => x.id === v)).map(f => f.id); const all = ids.every(i => state.fams.includes(i));
+      state.fams = all ? state.fams.filter(i => !ids.includes(i)) : [...new Set([...state.fams, ...ids])]; }
+    else if (k === "more") ui.open[v] = true;
+    else if (k === "full") { opts.onFull && opts.onFull(); }
+    else if (k === "topic") { opts.onTopic ? opts.onTopic(v) : go("t~" + v); return; }
     else if (k === "yall") { state.yrs = []; state.last = 0; }
     else if (k === "last") { state.yrs = []; state.last = state.last === +v ? 0 : +v; }
     else if (k === "yr") { state.last = 0; toggleIn(state.yrs, +v); }
     else if (k === "uniq") { state.uniq = b.checked; return; }
     render();
   };
+  state.rerender = render;
   render();
   return state;
 }
 const LOGIN_NOTE = () => `<div class="login-note">🔒 ${L("यह चयन अभी सिर्फ़ इसी फ़ोन/ब्राउज़र में रहेगा। हमेशा के लिए सेव करने के लिए <b>लॉगिन</b> (जल्द आ रहा है)।", "This choice stays only on this phone/browser for now. <b>Login</b> (coming soon) will save it permanently.")}</div>`;
 
-function firstVisitPopup() {
-  const m = document.createElement("div"); m.className = "modal-mask";
-  m.innerHTML = `<div class="modal big" role="dialog" aria-modal="true">
-    <div class="mb-head"><b>🎯 ${L("आप किस परीक्षा की तैयारी कर रहे हैं?", "Which exam are you preparing for?")}</b>
-      <small>${L("एक या ज़्यादा चुनें — Full Paper और Topic-wise दोनों में यही दिखेगा। बाद में कभी भी बदल सकते हैं।", "Pick one or more — Full Papers and Topic-wise will follow this. Change anytime.")}</small></div>
-    <div class="mb-body" id="fv-pk"></div>
-    ${LOGIN_NOTE()}
-    <div class="mb-foot"><button class="btn btn-primary btn-block" id="fv-ok">✓ ${L("आगे बढ़ें", "Continue")}</button>
-      <button class="reset-link" id="fv-skip">${L("अभी नहीं — सारे exam दिखाएँ", "Not now — show all exams")}</button></div></div>`;
-  document.body.appendChild(m);
-  const st = mountPicker(m.querySelector("#fv-pk"), EMPTY(), { noYears: true,
-    onChange: s => { const b = m.querySelector("#fv-ok"); if (b) b.textContent = s.fams.length ? `✓ ${L("आगे बढ़ें", "Continue")} (${s.fams.length})` : `✓ ${L("आगे बढ़ें", "Continue")}`; } });
-  m.querySelector("#fv-ok").onclick = () => { store.set("my", st); m.remove(); route(); };
-  m.querySelector("#fv-skip").onclick = () => { store.set("my", EMPTY()); m.remove(); route(); };
-}
+function firstVisitPopup() { openPickerModal(true); }
 
 /* ---------- topic-level filter (temporary, only for that topic) ---------- */
 const TALL = { fams: [], yrs: [], last: 0 };
@@ -286,10 +310,10 @@ function tadkaPopup(text) {
 function topbar({ back, title, sub, right = "" }) {
   return `<header class="topbar"><button class="back" data-go="${back}" aria-label="back">‹</button>
     <div class="t"><b>${title}</b>${sub ? `<small>${sub}</small>` : ""}</div>${right}
-    <button class="home-btn" data-go="home" aria-label="Home">🏠</button>${langToggle()}</header>`;
+    ${langToggle()}</header>`;
 }
 function brandBar() {
-  return `<header class="topbar"><div class="brand"><img src="assets/logo.webp" alt="">
+  return `<header class="topbar"><button class="ham" data-act="drawer" aria-label="menu">☰</button><div class="brand"><img src="assets/logo.webp" alt="">
     <div><div class="brand-name">${SITE.NAME_A}<span>${SITE.NAME_B}</span></div><div class="brand-sub">by ${SITE.ACADEMY}</div></div></div>
     ${langToggle()}</header>`;
 }
@@ -370,6 +394,7 @@ async function sendReport(row) {
   return true;
 }
 const qFoot = q => `<div class="q-foot"><span class="qid">ID: ${esc(q.id)}</span>
+  <button class="bm-btn ${isBm(q.id) ? "on" : ""}" data-act="bm" data-v="${esc(q.id)}" data-qid="${esc(q.id)}" aria-label="bookmark">${isBm(q.id) ? "★" : "☆"}</button>
   ${store.get("rp." + q.id) ? `<span class="rep-done">✓ ${L("रिपोर्ट भेजी", "Reported")}</span>` : `<button class="rep-btn" data-act="report" data-qid="${esc(q.id)}">⚠️ ${L("रिपोर्ट", "Report")}</button>`}</div>`;
 function fbBox(q) {
   const done = store.get("fb." + q.id);
@@ -419,52 +444,27 @@ function subjectTile(sb, s) {
 
 function viewHome() {
   const st = CATALOG.stats, s = mySel();
-  const cet = allFamilies().find(f => f.name.startsWith("CET (12th"));
-  const demo = cet && cet.papers.find(p => p.expl > 100);
-  const last = store.get("last");
-  const lastT = last && last.kind === "topic" && topicMeta(last.id);
-  const lastP = last && last.kind === "paper" && paperMeta(last.id);
+  const byBoard = CATALOG.boards.map(b => [b.name, b.families.reduce((n, f) => n + f.papers.length, 0)]).filter(x => x[1]);
   $app.innerHTML = `${brandBar()}
-  <div class="card myex"><div class="me-h"><span>🎯 ${L("मेरी परीक्षाएँ", "My exams")}</span><button class="link" data-go="pick~g~home">${L("बदलें", "Change")}</button></div>
-    <div class="sb-chips">${selHTML(s)}</div>
-    <small class="me-n">${L("Full Paper और Topic-wise में यही exam दिखेंगे", "Full Papers & Topic-wise follow this")}${hasPicked() ? "" : " • " + L("अभी चुना नहीं", "not chosen yet")}</small></div>
-  <section class="hero">
-    <h1>${L("राजस्थान के सारे PYQ — बिल्कुल Free", "All Rajasthan PYQs — completely free")}</h1>
-    <p>${st.papers} ${L("पेपर", "papers")} • ${nf(st.q)} ${L("प्रश्न", "questions")} • RSSB (${L("RPSC, High Court जल्द", "RPSC, High Court soon")})</p>
-    <label class="search"><span>🔍</span><input id="q" type="search" placeholder="${L("Exam या टॉपिक खोजें — जैसे CET, Patwari, संधि", "Search an exam or topic — e.g. CET, Patwari, Sandhi")}" autocomplete="off"></label>
-  </section>
-  <div id="search-results" class="search-results"></div>
-  <div id="install-slot"></div>
-  ${lastT ? `<button class="card continue" data-go="p~${lastT.id}~0"><span class="ic">▶</span>
-     <span class="tx"><small>${L("जहाँ छोड़ा था, वहीं से", "Continue where you left")}</small><b>${esc(nm(lastT))}</b><small style="color:var(--muted);font-weight:500">${nm(lastT.s)} › ${nm(lastT.g)}</small></span><span class="go">›</span></button>` : ""}
-  ${lastP ? `<button class="card continue" data-go="r~${last.id}~0"><span class="ic">▶</span>
-     <span class="tx"><small>${L("जहाँ छोड़ा था, वहीं से", "Continue where you left")}</small><b>${esc(paperName(last.id))}</b></span><span class="go">›</span></button>` : ""}
+  ${bannerHTML()}
+  ${continueCard()}
+  <div class="card mychip"><div><div class="lb">🎯 ${L("मेरी परीक्षाएँ", "My exams")}</div><div class="sb-chips">${selHTML(s)}</div></div>
+    <button class="bd" data-act="pick-open">${L("बदलें", "Change")}</button></div>
   <div class="doors">
     <button class="card door" data-go="b~rssb"><span class="di" style="background:var(--blue-wash)">📄</span>
-      <span><b>${L("पूरा पेपर", "Full Papers")}</b><small>${L("आपके चुने exam के असली पेपर — असली समय और marking के साथ", "Real papers of your exams — with real time and marking")}</small></span><span class="go">›</span></button>
+      <span class="dt"><b>Full PYQ Papers</b><span class="one"><b>${nf(st.papers)}</b> Papers • <span class="ok">✅ Authentic Ans Key</span></span>
+      <small class="src">${byBoard.map(([n]) => n).join(" / ")} ${L("की official site से", "official answer keys")}</small></span><span class="go">›</span></button>
     <button class="card door" data-go="subjects"><span class="di" style="background:var(--green-wash)">🧩</span>
-      <span><b>${L("टॉपिक-वाइज़ PYQ", "Topic-wise PYQs")}</b><small>${L("विषय → भाग → टॉपिक — Practice और 50-50 प्रश्नों के Test", "Subject → part → topic — practice and 50-question tests")}</small></span><span class="go">›</span></button>
+      <span class="dt"><b>Topic-wise PYQ</b><span class="one"><b>${nf(st.q)}</b> Que • <span class="ok">💡 Explanation + Short Tricks</span></span></span><span class="go">›</span></button>
   </div>
   <div class="section-h"><h2>${L("विषय", "Subjects")}</h2><span>${L("टॉपिक-वाइज़", "Topic-wise")}</span></div>
   <div class="subject-grid">${CATALOG.subjects.map(sb => subjectTile(sb, s)).join("")}</div>
-  ${demo ? `<div class="section-h"><h2>⚡ ${L("तुरंत शुरू करें", "Quick start")}</h2></div>
-  <div class="quick"><button class="card qk star" data-go="r~${demo.id}~1"><b>⭐ CET 12th 2024 Phase-2</b>${L("पूरा पेपर Explanation + Topic Tadka के साथ", "Full paper with Explanation + Topic Tadka")}</button>
-    ${cet ? `<button class="card qk" data-go="f~${cet.id}"><b>CET 12th Level</b>${cet.papers.length} ${L("पेपर", "papers")} • ${cet.years.join(", ")}</button>` : ""}</div>` : ""}
+  <div id="install-slot"></div>
   <p class="footer"><b>${SITE.NAME_A}${SITE.NAME_B}</b> — ${SITE.ACADEMY}<br>${SITE.TAGLINE}<br><span id="admin-link"></span></p>`;
   (async () => { try { const u = window.claude && claude.use ? await claude.use("user") : null;
     if ((u && await u.canEdit()) || store.get("repq", []).length) { const el = document.getElementById("admin-link"); if (el) el.innerHTML = `<button class="link" data-go="reports">📋 ${L("रिपोर्ट व फ़ीडबैक (एडमिन)", "Reports & feedback (admin)")}</button>`; } } catch { } })();
-
   renderInstall();
-  const input = document.getElementById("q");
-  input.oninput = () => {
-    const term = input.value.trim().toLowerCase(), box = document.getElementById("search-results");
-    if (!term) { box.innerHTML = ""; return; }
-    const fams = allFamilies().filter(f => (f.name + " " + f.short).toLowerCase().includes(term)).slice(0, 5)
-      .map(f => `<button class="card row-btn" data-go="f~${f.id}"><span class="tx"><b>📄 ${esc(f.name)}</b><span class="meta">${f.board.name} • ${f.papers.length} ${L("पेपर", "papers")}</span></span><span class="go">›</span></button>`);
-    const tops = Object.values(TOPIC).filter(t => t.n && t.name !== "अन्य" && (t.name.toLowerCase().includes(term) || (t.en || "").toLowerCase().includes(term))).slice(0, 6)
-      .map(t => `<button class="card row-btn" data-go="t~${t.id}"><span class="tx"><b>🧩 ${esc(nm(t))}</b><span class="meta">${nm(t.s)} › ${nm(t.g)} • ${t.n} ${L("प्रश्न", "Qs")}</span></span><span class="go">›</span></button>`);
-    box.innerHTML = [...fams, ...tops].join("") || `<div class="empty"><b>"${esc(input.value)}" ${L("नहीं मिला", "not found")}</b>${L("दूसरा शब्द लिखकर देखें।", "Try another word.")}</div>`;
-  };
+  startBanner();
 }
 
 /* ---------- full papers ---------- */
@@ -690,6 +690,12 @@ async function viewPractice(kind, id, page, famStr) {
     const f = activeFilter(id);
     list = applyFilter(data.questions, f); sid = meta.s.id; key = paKey("topic", id, f);
     title = nm(meta); back = "t~" + id; sub = topicMode(id) === "all" ? L("सारे exam", "All exams") : selHTML(f, { plain: true });
+  } else if (kind === "set") {
+    $app.innerHTML = `${topbar({ back: "me", title: "…" })}<div class="loading"><div class="spinner"></div></div>`;
+    list = await loadSet(id); key = "pa.set." + id; back = "me";
+    title = id === "bm" ? L("⭐ Bookmark प्रश्न", "⭐ Bookmarked questions") : L("❌ गलत हुए प्रश्न", "❌ Wrong answers");
+    sub = `${list.length} ${L("प्रश्न", "Qs")}`;
+    if (!list.length) { $app.innerHTML = `${topbar({ back, title })}<div class="empty"><b>${id === "bm" ? L("अभी कोई Bookmark नहीं", "No bookmarks yet") : L("अभी कोई गलत प्रश्न नहीं 👏", "No wrong answers yet 👏")}</b>${id === "bm" ? L("किसी भी प्रश्न के नीचे ☆ दबाकर Bookmark करें।", "Tap ☆ under any question to bookmark it.") : L("Practice में गलत हुए प्रश्न यहाँ अपने-आप आएँगे।", "Questions you get wrong in practice will appear here.")}</div>`; return; }
   } else {
     $app.innerHTML = `${topbar({ back: "home", title: L("पेपर", "Paper"), sub: "Practice" })}<div class="loading"><div class="spinner"></div></div>`;
     const P = await loadPaper(id);
@@ -720,7 +726,7 @@ async function viewPractice(kind, id, page, famStr) {
       ${qFoot(q)}
     </article>`;
   };
-  const R = kind === "topic" ? "p" : "r";
+  const R = kind === "topic" ? "p" : kind === "set" ? "l" : "r";
   const opt = n => { const a = (n - 1) * PER + 1, b = Math.min(n * PER, total); return `<option value="${n}" ${n === page ? "selected" : ""}>${L("पेज", "Page")} ${n} / ${pages}  (Q${a}–${b})</option>`; };
   $app.innerHTML = `${topbar({ back, title: esc(title), sub: esc(sub) })}
   <div class="card practice-head sticky"><div class="tx"><b id="ph-t"></b>
@@ -735,7 +741,7 @@ async function viewPractice(kind, id, page, famStr) {
     <select id="pg-sel" aria-label="page">${Array.from({ length: pages }, (_, i) => opt(i + 1)).join("")}</select>
     <button class="pg-arrow" data-go="${R}~${id}~${page + 1}" ${page === pages ? "disabled" : ""} aria-label="next">›</button>
   </div>
-  ${page === pages ? `<button class="btn btn-orange btn-block" style="margin-top:12px" data-go="${kind === "topic" ? "t~" + id + "~~test" : "x~paper~" + id}">${L("अब Test दें", "Take a test")} ›</button>` : ""}`;
+  ${page === pages && kind !== "set" ? `<button class="btn btn-orange btn-block" style="margin-top:12px" data-go="${kind === "topic" ? "t~" + id + "~~test" : "x~paper~" + id}">${L("अब Test दें", "Take a test")} ›</button>` : ""}`;
   PRACTICE = { card, list, key, kind, id, R, pa };
   updateHead();
   document.getElementById("pg-sel").onchange = e => go(`${R}~${id}~${e.target.value}`);
@@ -765,6 +771,7 @@ function onPracticeTap(btn) {
   if (!PRACTICE || !cardEl || btn.disabled) return;
   const q = PRACTICE.list.find(x => x.id === cardEl.dataset.qid);
   const pa = PRACTICE.pa; pa[q.id] = +btn.dataset.opt; store.set(PRACTICE.key, pa);   // same object the card reads
+  if (!q.d && q.a) { const ok = +btn.dataset.opt === q.a; trackAnswer(ok); noteWrong(q, ok); }
   cardEl.outerHTML = PRACTICE.card(q, +cardEl.dataset.i);
   updateHead();
 }
@@ -774,6 +781,7 @@ function restartPractice(kind, id) {
     yes: L("हाँ, फिर से शुरू", "Yes, restart"),
     onYes: () => {
       if (kind === "topic") { store.del(paKey("topic", id, activeFilter(id))); store.del("pd." + id); go(`p~${id}~1`); }
+      else if (kind === "set") { store.del("pa.set." + id); go(`l~${id}~1`); }
       else { store.del(paKey("paper", id)); go(`r~${id}~1`); }
     }
   });
@@ -837,6 +845,7 @@ async function route() {
   document.querySelectorAll(".modal-mask, .drawer, .drawer-mask, .resume-bar").forEach(el => el.remove());
   if (typeof Exam !== "undefined") Exam.stopTimer();
   const [name, ...a] = (location.hash.slice(1) || "home").split("~");
+  clearInterval(BANNER_T); closeDrawerMenu(); renderShell(name);
   delete $app.dataset.topic;
   try {
     if (name === "b") viewBoard(a[0]);
@@ -849,6 +858,16 @@ async function route() {
     else if (name === "r") await viewPractice("paper", a[0], +a[1] || 0);
     else if (name === "pick") await viewPick(a[0], a[1], a[2]);
     else if (name === "reports") await viewReports();
+    else if (name === "l") await viewPractice("set", a[0], +a[1] || 0);
+    else if (name === "mock") viewMock();
+    else if (name === "ts") viewTS();
+    else if (name === "mentor") viewMentor(a[0]);
+    else if (name === "skills") viewSkills();
+    else if (name === "me") viewMe();
+    else if (name === "hist") viewHist();
+    else if (name === "info") viewInfo(a[0]);
+    else if (name === "courses") viewSoon("🎓 My Courses", L("आपके ख़रीदे Course / Test Series / Mentorship यहाँ दिखेंगे।", "Your purchased courses will appear here."));
+    else if (name === "lib") viewSoon("📚 Library", L("PYQ PDF, Short Notes और Tricks — डाउनलोड के साथ।", "PYQ PDFs, short notes and tricks — downloadable."));
     else if (name === "x") await Exam.open(a[0], a[1], +a[2] || 0);
     else viewHome();
   } catch (err) {
