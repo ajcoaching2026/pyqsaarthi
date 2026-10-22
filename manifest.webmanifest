@@ -1,0 +1,19 @@
+{
+  "name": "PYQ Saarthi — RSSB, RPSC PYQ Practice & Test",
+  "short_name": "PYQ Saarthi",
+  "description": "राजस्थान की परीक्षाओं (RSSB, RPSC) के PYQ — पूरा पेपर, टॉपिक-वाइज़ Practice और Test, Explanation के साथ। बिल्कुल Free।",
+  "id": "/",
+  "start_url": "/?source=app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "lang": "hi",
+  "categories": ["education"],
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

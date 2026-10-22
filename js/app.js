@@ -434,6 +434,7 @@ function viewHome() {
     <label class="search"><span>🔍</span><input id="q" type="search" placeholder="${L("Exam या टॉपिक खोजें — जैसे CET, Patwari, संधि", "Search an exam or topic — e.g. CET, Patwari, Sandhi")}" autocomplete="off"></label>
   </section>
   <div id="search-results" class="search-results"></div>
+  <div id="install-slot"></div>
   ${lastT ? `<button class="card continue" data-go="p~${lastT.id}~0"><span class="ic">▶</span>
      <span class="tx"><small>${L("जहाँ छोड़ा था, वहीं से", "Continue where you left")}</small><b>${esc(nm(lastT))}</b><small style="color:var(--muted);font-weight:500">${nm(lastT.s)} › ${nm(lastT.g)}</small></span><span class="go">›</span></button>` : ""}
   ${lastP ? `<button class="card continue" data-go="r~${last.id}~0"><span class="ic">▶</span>
@@ -453,6 +454,7 @@ function viewHome() {
   (async () => { try { const u = window.claude && claude.use ? await claude.use("user") : null;
     if ((u && await u.canEdit()) || store.get("repq", []).length) { const el = document.getElementById("admin-link"); if (el) el.innerHTML = `<button class="link" data-go="reports">📋 ${L("रिपोर्ट व फ़ीडबैक (एडमिन)", "Reports & feedback (admin)")}</button>`; } } catch { } })();
 
+  renderInstall();
   const input = document.getElementById("q");
   input.oninput = () => {
     const term = input.value.trim().toLowerCase(), box = document.getElementById("search-results");
@@ -904,3 +906,32 @@ if (SITE.PROTECT_CONTENT) {
   try { [CATALOG] = await Promise.all([getJSON("data/catalog.json"), loadFixes()]); indexCatalog(); route(); }
   catch (e) { console.error(e); $app.innerHTML = `<div class="empty" style="margin-top:40px"><b>Data could not load</b>Please refresh.</div>`; }
 })();
+
+// ---------- App install (PWA) ----------
+let INSTALL_EVT = null;
+const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+function renderInstall() {
+  const slot = document.getElementById("install-slot");
+  if (!slot) return;
+  if (isStandalone() || store.get("inst.x")) { slot.innerHTML = ""; return; }
+  const ios = isIOS() && !INSTALL_EVT;
+  if (!INSTALL_EVT && !ios) { slot.innerHTML = ""; return; }
+  slot.innerHTML = `<div class="card install-card"><img src="assets/icon-192.png" alt="" width="44" height="44">
+    <div class="ic-tx"><b>${L("PYQ Saarthi App इंस्टॉल करें", "Install the PYQ Saarthi app")}</b>
+    <small>${ios ? L("Safari में नीचे Share ⬆️ दबाएँ → “Add to Home Screen”", "In Safari tap Share ⬆️ → “Add to Home Screen”")
+                 : L("Free • 1 MB से कम • बिना इंटरनेट भी पुराने पेपर खुलेंगे", "Free • under 1 MB • opens saved papers offline")}</small></div>
+    ${ios ? "" : `<button class="btn btn-primary btn-sm" data-act="install">${L("इंस्टॉल", "Install")}</button>`}
+    <button class="ic-x" data-act="install-x" aria-label="close">✕</button></div>`;
+}
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); INSTALL_EVT = e; renderInstall(); });
+window.addEventListener("appinstalled", () => { INSTALL_EVT = null; store.set("inst.x", 1); renderInstall(); });
+document.addEventListener("click", async e => {
+  const a = e.target.closest("[data-act='install'],[data-act='install-x']"); if (!a) return;
+  if (a.dataset.act === "install" && INSTALL_EVT) { INSTALL_EVT.prompt(); await INSTALL_EVT.userChoice.catch(() => {}); INSTALL_EVT = null; }
+  else store.set("inst.x", 1);
+  renderInstall();
+});
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost") && !/claude|claudeusercontent/.test(location.hostname)) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+}
