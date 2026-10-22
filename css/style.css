@@ -790,3 +790,16 @@ body.in-test #bnav { display: none; }
 .bm-btn { border: 0; background: none; font-size: 19px; color: #94a3b8; cursor: pointer; padding: 0 6px; line-height: 1; } .bm-btn.on { color: #f59e0b; }
 .q-foot { display: flex; align-items: center; } .q-foot .qid { margin-right: auto; }
 .mk-b .btn-sm, .mp .btn-sm { white-space: nowrap; min-width: 74px; }
+/* v1.3 fixes */
+.card.cont { margin: 12px 0 0; }
+.card.myex { margin-top: 12px; }
+.door .one { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 420px) {
+  .door { gap: 10px; } .door .di { width: 40px; height: 40px; font-size: 20px; flex: none; }
+  .door .go { display: none; } .door .one { font-size: 12.5px; } .door .one b { font-size: 15px; }
+}
+@media (min-width: 1024px) { #app { max-width: 560px; } }
+.card.mk { margin-top: 10px; padding: 12px 14px; }
+.card.mk-fam { width: 100%; border: 0; text-align: left; font: inherit; cursor: pointer; }
+.mk-fam .go { color: var(--blue); font-weight: 800; font-size: 22px; }
+.mk-b .btn-sm { padding: 6px 12px; }

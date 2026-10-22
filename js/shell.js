@@ -104,7 +104,7 @@ function continueCard() {
     return `<button class="card cont" data-go="r~${last.id}~0"><span class="pl">▶</span><span class="tx"><small>${L("जहाँ छोड़ा था, वहीं से", "Continue where you left")} • ${L("पेपर पढ़ें", "Paper")}</small>
       <b>${esc(paperName(last.id))}</b>${n ? `<span class="bar"><i style="width:${Math.round(d * 100 / n)}%"></i></span><small>${d} / ${n} ${L("हल किए", "done")}</small>` : ""}</span><span class="go">›</span></button>`;
   }
-  if (last.kind === "set") {
+  if (last.kind === "set" && false) {
     return `<button class="card cont" data-go="l~${last.id}~0"><span class="pl">▶</span><span class="tx"><small>${L("जहाँ छोड़ा था, वहीं से", "Continue where you left")}</small>
       <b>${last.id === "bm" ? L("⭐ Bookmark प्रश्न", "⭐ Bookmarked") : L("❌ गलत हुए प्रश्न", "❌ Wrong answers")}</b></span><span class="go">›</span></button>`;
   }
@@ -176,38 +176,39 @@ async function loadSet(which) {
 const pageTop = (title, sub) => topbar({ back: "home", title, sub });
 const soonTag = () => `<span class="tag soon">${L("जल्द आ रहा है", "Coming soon")}</span>`;
 
-/* ---------- 📝 Mock (made from PYQ of an exam) ---------- */
-function mockList() {
-  const out = [];
-  allFamilies().forEach(f => {
-    const groups = {};
-    f.papers.filter(p => !CATALOG.papers[p.id]?.bad).forEach(p => {
-      const v = /^(shift|phase)/i.test(p.title || "") || !p.title ? "" : p.title;
-      (groups[v] = groups[v] || []).push(p);
-    });
-    Object.entries(groups).forEach(([v, ps]) => {
-      const q = ps.reduce((a, p) => a + (p.n || 0), 0);
-      if (ps.length >= 2 || q >= 150) out.push({ id: f.id + "|" + v, fam: f, v, papers: ps, q, n: Math.max(...ps.map(p => p.n || 0)) });
-    });
-  });
+/* ---------- 📝 PYQ Mock — fixed mixed tests made from an exam's real papers ---------- */
+const loadMocks = () => getJSON("data/mock.json");
+const mockTitle = m => `${m.name}${m.v ? " — " + m.v : ""}`;
+const mockState = (key, k) => store.get(`exam.mock.${key}.${k}`);
+async function viewMock(key) {
+  $app.innerHTML = `${pageTop("📝 PYQ Mock Test")}<div class="loading"><div class="spinner"></div></div>`;
+  const M = await loadMocks();
+  if (key) {
+    const m = M[key]; if (!m) return go("mock");
+    const fam = family(m.fam);
+    $app.innerHTML = `${topbar({ back: "mock", title: esc(mockTitle(m)), sub: `${m.tests.length} Mock • ${m.n} ${L("प्रश्न हर एक", "Qs each")}` })}
+      <div class="tip">📌 ${L(`ये <b>${m.tests.length} Mock</b> ${esc(fam ? fam.name : m.name)} के <b>${m.papers.length} असली पेपरों</b> के ${nf(m.q)} प्रश्नों को मिलाकर बने हैं — हर Mock हमेशा एक जैसा रहेगा, ताकि सबकी Rank एक साथ बने।`,
+        `These <b>${m.tests.length} mocks</b> mix ${nf(m.q)} questions from <b>${m.papers.length} real papers</b> — each mock stays fixed so everyone's rank is comparable.`)}</div>
+      ${m.tests.map((t, k) => { const S = mockState(key, k); const done = S && S.submitted;
+        return `<div class="card mk"><div class="mk-t"><b>Mock ${k + 1}</b><small>${t.length} ${L("प्रश्न", "Qs")} • ${Math.round(m.min * t.length / m.n)} ${L("मिनट", "min")} • +${m.pos} / −${m.neg}</small>
+          ${done ? `<span class="tag ok">✓ ${L("स्कोर", "Score")} ${toNum(S.result?.score ?? 0)} / ${toNum(S.result?.max ?? 0)}</span>` : S ? `<span class="tag soon">▶ ${L("अधूरा", "In progress")}</span>` : `<span class="tag free">Free</span>`}</div>
+          <div class="mk-b">${done ? `<button class="btn-sm" data-go="x~mock~${enc(key)}~${k}">${L("Result", "Result")}</button><button class="btn-sm prim" data-act="mock-retake" data-v="${esc(key)}" data-k="${k}">↺ ${L("दोबारा", "Retake")}</button>`
+            : `<button class="btn-sm prim" data-go="x~mock~${enc(key)}~${k}">${S ? L("जारी रखें", "Resume") : L("शुरू करें", "Start")}</button>`}</div></div>`; }).join("")}
+      <div class="tip">🏆 ${L("Rank — लॉगिन के बाद (जल्द): हर Mock में सबके अंक मिलाकर असली Rank।", "Rank — after login (soon): real rank from everyone's scores.")}</div>`;
+    return;
+  }
   const my = mySel().fams;
-  return out.sort((a, b) => (my.includes(b.fam.id) - my.includes(a.fam.id)) || (a.fam.pop - b.fam.pop) || b.q - a.q);
-}
-function viewMock() {
-  const L1 = mockList(), my = mySel().fams;
-  const row = m => {
-    const S = store.get("exam.mock." + m.id);
-    const st = S ? (S.submitted ? `<span class="tag ok">✓ ${L("दिया", "Done")} • ${toNum(S.result?.score ?? 0)}</span>` : `<span class="tag soon">▶ ${L("अधूरा", "In progress")}</span>`) : `<span class="tag free">Free</span>`;
-    return `<div class="card mk"><div class="mk-t"><b>${esc(m.fam.name)}${m.v ? ` — ${esc(m.v)}` : ""}</b>
-      <small>${m.n} ${L("प्रश्न", "Qs")} • ${m.papers.length} ${L("पेपर से", "papers")} • ${m.q} PYQ</small>${st}</div>
-      <div class="mk-b">${S && S.submitted ? `<button class="btn-sm" data-go="x~mock~${m.id}">${L("Result", "Result")}</button><button class="btn-sm prim" data-act="mock-new" data-v="${m.id}">↺ ${L("नया", "New")}</button>`
-        : `<button class="btn-sm prim" data-go="x~mock~${m.id}">${S ? L("जारी रखें", "Resume") : L("शुरू करें", "Start")}</button>`}</div></div>`;
-  };
-  const mine = L1.filter(m => my.includes(m.fam.id)), rest = L1.filter(m => !my.includes(m.fam.id));
+  const list = Object.entries(M).sort(([, a], [, b]) => (my.includes(b.fam) - my.includes(a.fam)) || ((family(a.fam)?.pop ?? 99) - (family(b.fam)?.pop ?? 99)) || b.q - a.q);
+  const row = ([key, m]) => { const done = m.tests.filter((_, k) => mockState(key, k)?.submitted).length;
+    return `<button class="card mk mk-fam" data-go="mock~${enc(key)}"><div class="mk-t"><b>${esc(mockTitle(m))}</b>
+      <small>${m.tests.length} Mock • ${m.n} ${L("प्रश्न", "Qs")} • ${m.papers.length} ${L("पेपर से", "papers")} • ${nf(m.q)} PYQ</small>
+      ${done ? `<span class="tag ok">✓ ${done} / ${m.tests.length} ${L("दिए", "done")}</span>` : `<span class="tag free">Free</span>`}</div><span class="go">›</span></button>`; };
+  const mine = list.filter(([, m]) => my.includes(m.fam)), rest = list.filter(([, m]) => !my.includes(m.fam));
   $app.innerHTML = `${pageTop("📝 PYQ Mock Test", L("असली exam के pattern पर", "On the real exam pattern"))}
-    <div class="tip">💡 ${L("हर Mock उसी exam के <b>असली PYQ</b> से बनता है — हर बार <b>नए प्रश्न</b>, असली समय और marking के साथ।", "Each mock is built from that exam's <b>real PYQs</b> — <b>new questions</b> every time, with real time and marking.")}</div>
+    <div class="tip">💡 ${L("हर exam के <b>सारे असली PYQ</b> मिलाकर बने <b>fixed Mock</b> — असली समय और marking के साथ, Rank भी (लॉगिन के बाद)।", "<b>Fixed mocks</b> made by mixing <b>all real PYQs</b> of an exam — real time and marking, with rank (after login).")}</div>
     ${mine.length ? `<div class="section-h"><h2>🎯 ${L("मेरी परीक्षाएँ", "My exams")}</h2></div>${mine.map(row).join("")}` : ""}
-    <div class="section-h"><h2>${mine.length ? L("बाकी exam", "Other exams") : L("सारे exam", "All exams")}</h2><span>${rest.length}</span></div>${rest.map(row).join("")}`;
+    <div class="section-h"><h2>${mine.length ? L("बाकी exam", "Other exams") : L("सारे exam", "All exams")}</h2><span>${rest.length}</span></div>${rest.map(row).join("")}
+    <div class="tip">ℹ️ ${L("जिस exam के 2 या ज़्यादा पेपर हैं, उसके Mock बनते हैं। नए पेपर जुड़ने पर नए Mock अपने-आप जुड़ेंगे — पुराने वैसे ही रहेंगे।", "Mocks are made for exams with 2+ papers. New papers add new mocks — old ones stay the same.")}</div>`;
 }
 
 /* ---------- 🏆 Test Series ---------- */
@@ -306,7 +307,7 @@ function examHistory() {
 }
 function viewHist() {
   const H = examHistory();
-  const route = S => S.kind === "topic" ? `x~topic~${S.id}~${S.chunk || 0}` : `x~${S.kind}~${S.id}`;
+  const route = S => S.kind === "topic" || S.kind === "mock" ? `x~${S.kind}~${enc(S.id)}~${S.chunk || 0}` : `x~${S.kind}~${S.id}`;
   $app.innerHTML = `${topbar({ back: "me", title: "🧾 Test History", sub: `${H.length} ${L("टेस्ट", "tests")}` })}
     ${H.map(S => { const r = S.result || {}; return `<button class="card hrow" data-go="${route(S)}"><div><b>${esc(S.title)}</b>
       <small>${new Date(S.submittedAt).toLocaleDateString(LANG === "en" ? "en-IN" : "hi-IN", { day: "numeric", month: "short", year: "numeric" })} • ✓ ${r.correct ?? "-"} ✗ ${r.wrong ?? "-"}</small></div>
@@ -362,7 +363,7 @@ document.addEventListener("click", e => {
   else if (act === "notify") notifyMe(v);
   else if (act === "mf") { store.set("mf", v); viewMentor(); }
   else if (act === "bm") { const q = findQ(v); if (q) toggleBm(q); }
-  else if (act === "mock-new") confirmBox({ title: L("पिछला Mock हटाकर नए प्रश्नों से नया Mock बनाएँ?", "Remove the last mock and build a new one?"), onYes: () => { store.del("exam.mock." + v); go("x~mock~" + v); } });
+  else if (act === "mock-retake") confirmBox({ title: L("इस Mock के पिछले उत्तर हटाकर दोबारा दें?", "Clear your answers and retake this mock?"), onYes: () => { store.del(`exam.mock.${v}.${a.dataset.k}`); go(`x~mock~${enc(v)}~${a.dataset.k}`); } });
   else if (act === "me-name") { const n = prompt(L("आपका नाम", "Your name"), store.get("name", "")); if (n !== null) { store.set("name", n.trim().slice(0, 40)); viewMe(); } }
   else if (act === "share") {
     const d = { title: SITE.NAME_A + SITE.NAME_B, text: L("राजस्थान के सारे PYQ — बिल्कुल Free, Explanation के साथ 👇", "All Rajasthan PYQs — free, with explanations 👇"), url: location.origin };

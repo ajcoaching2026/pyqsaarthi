@@ -1,6 +1,6 @@
 // PYQ Saarthi — offline support (service worker)
 // Niyam: internet ho to hamesha NAYA data (network-first); internet na ho to pichhla save kiya hua (cache).
-const CACHE = "pyqs-v3";
+const CACHE = "pyqs-v4";
 const SHELL = ["/", "/index.html", "/css/style.css", "/js/config.js", "/js/app.js", "/js/shell.js", "/js/exam.js",
   "/data/catalog.json", "/assets/logo.webp", "/assets/trophy.webp", "/assets/icon-192.png", "/manifest.webmanifest"];
 

@@ -444,16 +444,16 @@ function subjectTile(sb, s) {
 
 function viewHome() {
   const st = CATALOG.stats, s = mySel();
-  const byBoard = CATALOG.boards.map(b => [b.name, b.families.reduce((n, f) => n + f.papers.length, 0)]).filter(x => x[1]);
   $app.innerHTML = `${brandBar()}
   ${bannerHTML()}
   ${continueCard()}
-  <div class="card mychip"><div><div class="lb">🎯 ${L("मेरी परीक्षाएँ", "My exams")}</div><div class="sb-chips">${selHTML(s)}</div></div>
-    <button class="bd" data-act="pick-open">${L("बदलें", "Change")}</button></div>
+  <div class="card myex"><div class="me-h"><span>🎯 ${L("मेरी परीक्षाएँ", "My exams")}</span><button class="link" data-act="pick-open">${L("बदलें", "Change")}</button></div>
+    <div class="sb-chips">${selHTML(s)}</div>
+    <small class="me-n">${L("Full Paper और Topic-wise में यही exam दिखेंगे", "Full Papers & Topic-wise follow this")}${hasPicked() ? "" : " • " + L("अभी चुना नहीं", "not chosen yet")}</small></div>
   <div class="doors">
     <button class="card door" data-go="b~rssb"><span class="di" style="background:var(--blue-wash)">📄</span>
       <span class="dt"><b>Full PYQ Papers</b><span class="one"><b>${nf(st.papers)}</b> Papers • <span class="ok">✅ Authentic Ans Key</span></span>
-      <small class="src">${byBoard.map(([n]) => n).join(" / ")} ${L("की official site से", "official answer keys")}</small></span><span class="go">›</span></button>
+</span><span class="go">›</span></button>
     <button class="card door" data-go="subjects"><span class="di" style="background:var(--green-wash)">🧩</span>
       <span class="dt"><b>Topic-wise PYQ</b><span class="one"><b>${nf(st.q)}</b> Que • <span class="ok">💡 Explanation + Short Tricks</span></span></span><span class="go">›</span></button>
   </div>
@@ -462,7 +462,7 @@ function viewHome() {
   <div id="install-slot"></div>
   <p class="footer"><b>${SITE.NAME_A}${SITE.NAME_B}</b> — ${SITE.ACADEMY}<br>${SITE.TAGLINE}<br><span id="admin-link"></span></p>`;
   (async () => { try { const u = window.claude && claude.use ? await claude.use("user") : null;
-    if ((u && await u.canEdit()) || store.get("repq", []).length) { const el = document.getElementById("admin-link"); if (el) el.innerHTML = `<button class="link" data-go="reports">📋 ${L("रिपोर्ट व फ़ीडबैक (एडमिन)", "Reports & feedback (admin)")}</button>`; } } catch { } })();
+    if ((u && await u.canEdit()) || store.get("adm", false)) { const el = document.getElementById("admin-link"); if (el) el.innerHTML = `<button class="link" data-go="reports">📋 ${L("रिपोर्ट व फ़ीडबैक (एडमिन)", "Reports & feedback (admin)")}</button>`; } } catch { } })();
   renderInstall();
   startBanner();
 }
@@ -703,7 +703,7 @@ async function viewPractice(kind, id, page, famStr) {
     key = paKey("paper", id);
   }
   if (!list.length) { $app.innerHTML = `${topbar({ back, title: esc(title) })}<div class="empty"><b>${L("कोई प्रश्न नहीं", "No questions")}</b></div>`; return; }
-  store.set("last", { kind, id });
+  if (kind !== "set") store.set("last", { kind, id });
   const pa = store.get(key, {});
   const total = list.length, pages = Math.ceil(total / PER);
   const firstOpen = list.findIndex(q => !pa[q.id]);
@@ -857,9 +857,10 @@ async function route() {
     else if (name === "p") await viewPractice("topic", a[0], +a[1] || 0, a[2]);
     else if (name === "r") await viewPractice("paper", a[0], +a[1] || 0);
     else if (name === "pick") await viewPick(a[0], a[1], a[2]);
-    else if (name === "reports") await viewReports();
+    else if (name === "admin") { if (a[0] === SITE.ADMIN_PIN) { store.set("adm", true); toast("Admin ✓"); go("reports"); } else go("home"); }
+    else if (name === "reports") { if (store.get("adm", false) || (window.claude && claude.use)) await viewReports(); else go("home"); }
     else if (name === "l") await viewPractice("set", a[0], +a[1] || 0);
-    else if (name === "mock") viewMock();
+    else if (name === "mock") await viewMock(a[0] ? decodeURIComponent(a[0]) : "");
     else if (name === "ts") viewTS();
     else if (name === "mentor") viewMentor(a[0]);
     else if (name === "skills") viewSkills();

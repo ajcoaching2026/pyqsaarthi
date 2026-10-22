@@ -37,27 +37,18 @@ const Exam = (() => {
         insEn: `✍️ This paper was asked in **RSSB ${P.fam}** on **${P.date.split("-").reverse().join(".")}**.\n✍️ Total Questions = **${P.n}**${P.del ? ` (${P.del} deleted — not counted)` : ""}\n✅ Correct = **+${P.pos}**, ❌ Wrong = **-${P.neg}**\n⌛ Time = **${P.min} minutes**\n${ruleEn}`
       };
     } else if (kind === "mock") {
-      const m = mockList().find(x => x.id === id);
-      if (!m) { toast(L("यह Mock नहीं मिला", "Mock not found")); return go("mock"); }
-      const saved0 = store.get("exam." + key);
-      const latest = [...m.papers].sort((a, b) => (b.date || "").localeCompare(a.date || ""))[0];
-      const L0 = await loadPaper(latest.id);
-      let pool = [];
-      if (!saved0) {
-        const Ps = await Promise.all(m.papers.map(p => loadPaper(p.id)));
-        const seen = new Set(), all = [];
-        Ps.forEach(P => P.questions.forEach(q => { if (q.d || !q.a) return; const g = q.g || q.id; if (seen.has(g)) return; seen.add(g); all.push({ ...q, p: P.id }); }));
-        for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
-        pool = all.slice(0, Math.min(L0.n, all.length)).sort((a, b) => a.n - b.n);
-      }
-      const n = saved0 ? saved0.n : pool.length;
-      const mins = Math.round(L0.min * n / L0.n);
-      const nm0 = `${m.fam.name}${m.v ? " — " + m.v : ""}`;
+      const M = await loadMocks(), m = M[id], k = size || 0;
+      if (!m || !m.tests[k]) { toast(L("यह Mock नहीं मिला", "Mock not found")); return go("mock"); }
+      const t = m.tests[k];
+      const Ps = {}; await Promise.all([...new Set(t.map(x => m.papers[x[0]]))].map(async p => { Ps[p] = await loadPaper(p); }));
+      const pool = t.map(([pi, qid]) => { const P = Ps[m.papers[pi]]; const q = P && P.questions.find(z => z.id === qid); return q ? { ...q, p: P.id } : null; }).filter(Boolean);
+      const mins = Math.round(m.min * pool.length / m.n), nm0 = mockTitle(m);
+      key = `mock.${id}.${k}`;
       base = {
-        key, kind, id, back: "mock", title: `${nm0} — PYQ Mock`, header: `${nm0} • PYQ Mock`,
-        pos: L0.pos, neg: L0.neg, optE: SITE.TOPIC_TEST.OPTION_E, minutes: mins, size: n, pool,
-        insHi: `✍️ यह **PYQ Mock** है — **${nm0}** के **${m.papers.length} असली पेपरों** से चुने गए प्रश्न (हर बार नए)।\n✍️ कुल प्रश्न = **'${n}'**\n✅ सही उत्तर = **'+${L0.pos} अंक'**\n❌ गलत उत्तर = **'-${L0.neg} अंक'**\n⌛ कुल समय = **'${mins} मिनट'**\n${rule}\n\n**"----------------🎊 All the Best🎊----------------"**`,
-        insEn: `✍️ This **PYQ Mock** is built from **${m.papers.length} real papers** of **${nm0}** (new questions every time).\n✍️ Total Questions = **${n}**\n✅ Correct = **+${L0.pos}**, ❌ Wrong = **-${L0.neg}**\n⌛ Time = **${mins} minutes**\n${ruleEn}`
+        key, kind, id, chunk: k, back: "mock~" + enc(id), title: `${nm0} — Mock ${k + 1}`, header: `${nm0} • Mock ${k + 1}`,
+        pos: m.pos, neg: m.neg, optE: SITE.TOPIC_TEST.OPTION_E, minutes: mins, size: pool.length, pool,
+        insHi: `✍️ यह **PYQ Mock ${k + 1} / ${m.tests.length}** है — **${nm0}** के **${m.papers.length} असली पेपरों** से मिलाकर बना (fixed — सबके लिए एक जैसा)।\n✍️ कुल प्रश्न = **'${pool.length}'**\n✅ सही उत्तर = **'+${m.pos} अंक'**\n❌ गलत उत्तर = **'-${m.neg} अंक'**\n⌛ कुल समय = **'${mins} मिनट'**\n${rule}\n\n**"----------------🎊 All the Best🎊----------------"**`,
+        insEn: `✍️ This is **PYQ Mock ${k + 1} of ${m.tests.length}** — mixed from **${m.papers.length} real papers** of **${nm0}** (fixed for everyone).\n✍️ Total Questions = **${pool.length}**\n✅ Correct = **+${m.pos}**, ❌ Wrong = **-${m.neg}**\n⌛ Time = **${mins} minutes**\n${ruleEn}`
       };
     } else {
       const meta = topicMeta(id);
@@ -294,7 +285,7 @@ const Exam = (() => {
           <div><span class="val">${toNum(r.score)}</span> <span class="of">/ ${toNum(r.max)}</span></div>
           <span class="pill">${r.pct}%</span></div>
       </div>
-      ${S.kind === "paper" ? loginLock("आपकी रैंक: — • आप —% छात्रों से आगे", "Your rank: — • ahead of —% students") : ""}
+      ${S.kind === "paper" || S.kind === "mock" ? loginLock("आपकी रैंक: — • आप —% छात्रों से आगे", "Your rank: — • ahead of —% students") : ""}
       <div class="stat4">
         <div class="stat c"><div class="ic">✓</div><div class="nm">${L("सही", "Right")}</div><b>${r.correct}</b><span class="mk">+${toNum(r.plus)}</span></div>
         <div class="stat w"><div class="ic">✕</div><div class="nm">${L("गलत", "Wrong")}</div><b>${r.wrong}</b><span class="mk">−${toNum(r.minus)}</span></div>

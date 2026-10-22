@@ -30,7 +30,8 @@ const SITE = {
   // ---------- Judiye (social links) — khaali "" wala button nahi dikhega ----------
   SOCIAL: { telegram: "https://t.me/AJHinglishAcademy", youtube: "", instagram: "", whatsapp: "" },
   EMAIL: "ajcoaching2026@gmail.com",     // contact@pyqsaarthi.com chalu hone par yahan badlein
-  VERSION: "1.2",
+  VERSION: "1.3",
+  ADMIN_PIN: "aj2026",                   // reports page: pyqsaarthi.com/#admin~aj2026 (sirf aapke phone/laptop par ek baar kholna)
 
 
   // Topic-wise test ke niyam (Mock tests apni Excel settings se chalte hain)
