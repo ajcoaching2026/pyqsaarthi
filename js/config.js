@@ -47,7 +47,7 @@ const SITE = {
   // ---------- Admin Google Sheet (tools/admin_apps_script.gs) ----------
   // API = Apps Script "Web app URL" • PUB = Publish-to-web link • GID = har tab ka gid (setup() ke log se)
   // Khaali rahe to reports sirf usi phone me, aur Banner/Mentorship/Links neeche config se chalenge.
-  SHEET: { API: "https://script.google.com/macros/s/AKfycbwcVhU4-akAvnZA9rJhoR9wj2-aWVxLcr9zaL9D5OMuqYZnmT2DCCpRKYf0-x2IZnr7/exec", PUB: "", GID: { sudhar: "506195322", banner: "1177734879", mentorship: "1403445941", links: "408479589" } },
+  SHEET: { API: "https://script.google.com/macros/s/AKfycbwcVhU4-akAvnZA9rJhoR9wj2-aWVxLcr9zaL9D5OMuqYZnmT2DCCpRKYf0-x2IZnr7/exec", PUB: "https://docs.google.com/spreadsheets/d/e/2PACX-1vR7y2ZQvoRX-PktM1s-JSyQGeYk3_5glC26t7G5LZ5XpBmDHFUj1cHu013kzR8rI_0gCNw0VlvbpwTC/pub", GID: { sudhar: "506195322", banner: "1177734879", mentorship: "1403445941", links: "408479589" } },
 
   // Security: live par true rakhein (copy / right-click band)
   PROTECT_CONTENT: false
