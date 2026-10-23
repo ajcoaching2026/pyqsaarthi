@@ -47,7 +47,7 @@ const SITE = {
   // ---------- Admin Google Sheet (tools/admin_apps_script.gs) ----------
   // API = Apps Script "Web app URL" • PUB = Publish-to-web link • GID = har tab ka gid (setup() ke log se)
   // Khaali rahe to reports sirf usi phone me, aur Banner/Mentorship/Links neeche config se chalenge.
-  SHEET: { API: "", PUB: "", GID: { sudhar: "", banner: "", mentorship: "", links: "" } },
+  SHEET: { API: "", PUB: "", GID: { sudhar: "506195322", banner: "1177734879", mentorship: "1403445941", links: "408479589" } },
 
   // Security: live par true rakhein (copy / right-click band)
   PROTECT_CONTENT: false
