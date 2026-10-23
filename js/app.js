@@ -64,21 +64,26 @@ function parseCSV(t) {
   if (f || row.length) { row.push(f); rows.push(row); }
   return rows;
 }
+/* Admin Google Sheet (published CSV tabs) — सुधार, Banner, Mentorship, Links */
+async function sheetRows(tab) {
+  const S = SITE.SHEET || {}, gid = (S.GID || {})[tab];
+  if (!S.PUB || gid === undefined || gid === "") return null;
+  const u = `${S.PUB}${S.PUB.includes("?") ? "&" : "?"}gid=${gid}&single=true&output=csv&t=${Math.floor(Date.now() / 60000)}`;
+  const rows = parseCSV(await (await fetch(u)).text());
+  const h = (rows.shift() || []).map(x => x.trim());
+  return rows.filter(r => r.some(x => x && x.trim())).map(r => Object.fromEntries(h.map((k, i) => [k, (r[i] || "").trim()])));
+}
+const isOn = v => !/^(no|0|off|नहीं|x|false)$/i.test((v || "").trim());
 async function loadFixes() {
-  if (!SITE.SUDHAR_CSV) return;
-  try {
-    const u = SITE.SUDHAR_CSV + (SITE.SUDHAR_CSV.includes("?") ? "&" : "?") + "t=" + Date.now();
-    const rows = parseCSV(await (await fetch(u)).text());
-    const h = (rows.shift() || []).map(x => x.trim().toLowerCase());
-    const col = name => h.indexOf(name.toLowerCase());
-    const idc = col("QID_Full") >= 0 ? col("QID_Full") : col("QID");
-    if (idc < 0) return;
-    rows.forEach(r => {
-      const id = (r[idc] || "").trim(); if (!id) return;
-      const g = n => { const i = col(n); return i >= 0 ? (r[i] || "").trim() : ""; };
-      FIX[id] = { q: g("Question"), o: [1, 2, 3, 4].map(k => g("Option " + k)), a: g("Final_Ans").toUpperCase(), e: g("Explanation"), t: g("Topic Tadka") };
-    });
-  } catch (e) { console.warn("सुधार शीट लोड नहीं हुई", e); }
+  const get = t => sheetRows(t).catch(e => { console.warn("sheet " + t, e); return null; });
+  const [fx, bn, mt, ln] = await Promise.all([get("sudhar"), get("banner"), get("mentorship"), get("links")]);
+  (fx || []).forEach(r => {
+    const id = r.QID_Full || r.QID; if (!id) return;
+    FIX[id] = { q: r.Question || "", o: [1, 2, 3, 4].map(k => r["Option " + k] || ""), a: (r.Final_Ans || "").toUpperCase(), e: r.Explanation || "", t: r["Topic Tadka"] || "" };
+  });
+  if (bn && bn.length) SITE.BANNERS = bn.filter(r => isOn(r.on) && r.title).map(r => ({ tag: r.tag, icon: r.icon, style: r.style || "s1", title: r.title, sub: r.sub, cta: r.cta, go: r.go || "home" }));
+  if (mt && mt.length) SITE.MENTORSHIP = mt.filter(r => isOn(r.on) && r.id && r.title).map(r => ({ ...r, points: (r.points || "").split("|").map(x => x.trim()).filter(Boolean) }));
+  (ln || []).forEach(r => { if (!r.key) return; if (r.key === "email") { if (r.value) SITE.EMAIL = r.value; } else SITE.SOCIAL[r.key] = r.value || ""; });
 }
 function fixQ(q) {
   const f = FIX[q.id]; if (!f) return;
@@ -211,7 +216,7 @@ function mountPicker(el, state, opts = {}) {
       ${body}${opts.noYears || q ? "" : years}
       ${opts.uniq !== undefined ? `<label class="chk-row"><input type="checkbox" data-pk="uniq" ${state.uniq ? "checked" : ""}> ${L("दोहराए गए प्रश्न सिर्फ़ एक बार", "Show repeated questions once")}</label>` : ""}`;
     const inp = el.querySelector("#pk-q");
-    inp.oninput = () => { ui.q = inp.value; render(); };
+    inp.oninput = () => { ui.q = inp.value; render(); clearTimeout(mountPicker.st); mountPicker.st = setTimeout(() => ui.q.trim().length > 1 && track("search", { search_term: ui.q.trim() }), 1500); };
     if (hadFocus) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
     opts.onChange && opts.onChange(state);
   };
@@ -324,6 +329,13 @@ const loginLock = (hi, en) => `<div class="card rank-lock"><div class="rl-i">�
 
 /* ---------- question card pieces ---------- */
 const rightAns = q => q.a || q.sa || 0;
+/* question text with picture: "[चित्र]" marks where it goes, else it comes after the text */
+const imgTag = (src, cls = "q-img") => `<img class="${cls}" src="data/${src}" alt="${L("चित्र", "Figure")}" loading="lazy" data-act="zoom">`;
+function qText(q) {
+  let h = fmt(q.q || "");
+  if (!q.im) return h.replace(/\[(चित्र|image|img)\]/gi, "");
+  return /\[(चित्र|image|img)\]/i.test(h) ? h.replace(/\[(चित्र|image|img)\]/i, imgTag(q.im)).replace(/\[(चित्र|image|img)\]/gi, "") : h + imgTag(q.im);
+}
 function optionButtons(q, chosen, opts = {}) {
   const LT = ["A", "B", "C", "D", "E"];
   const list = [...q.o]; if (opts.optionE) list.push(opts.optionE);
@@ -341,7 +353,7 @@ function optionButtons(q, chosen, opts = {}) {
       }
     } else if (chosen === n) cls = "sel";
     if (n === 5) cls += " e-opt";
-    return `<button class="opt ${cls}" data-opt="${n}" ${opts.disabled ? "disabled" : ""}>${tag}<span class="l">${LT[i]}.</span><span class="tx">${fmt(text)}</span></button>`;
+    return `<button class="opt ${cls}" data-opt="${n}" ${opts.disabled ? "disabled" : ""}>${tag}<span class="l">${LT[i]}.</span><span class="tx">${fmt(text)}${q.io && q.io[i] ? imgTag(q.io[i], "o-img") : ""}</span></button>`;
   }).join("");
 }
 function qTags(q) {
@@ -383,8 +395,8 @@ function qRef(q) {
 async function sendReport(row) {
   row = { ...row, time: new Date().toISOString(), page: ({ x: "टेस्ट", r: "पेपर पढ़ें", p: "टॉपिक प्रैक्टिस" })[location.hash.slice(1).split("~")[0]] || "अन्य", lang: LANG, done: false };
   try {
-    if (SITE.REPORT_URL) {                       // live site → Google Sheet
-      await fetch(SITE.REPORT_URL, { method: "POST", mode: "no-cors", body: new URLSearchParams(Object.entries(row).map(([k, v]) => [k, String(v)])) });
+    if (SITE.SHEET && SITE.SHEET.API) {          // live site → Google Sheet
+      await fetch(SITE.SHEET.API, { method: "POST", mode: "no-cors", body: new URLSearchParams(Object.entries(row).map(([k, v]) => [k, String(v)])) });
       return true;
     }
     const db = await reportDB();
@@ -576,6 +588,7 @@ async function viewTopic(tid, famStr, focus) {
   const fams = famsParam(famStr);
   if (fams.length) { applyScope(tid, fams); return location.replace("#t~" + tid + (focus ? "~~" + focus : "")); }
   const back = `g~${meta.g.id}~${meta.s.id}`;
+  track("topic_open", { topic: meta.name, subject: meta.s.name, group: meta.g.name });
   $app.innerHTML = `${topbar({ back, title: nm(meta), sub: nm(meta.g) })}<div class="loading"><div class="spinner"></div></div>`;
   const data = await loadTopic(tid);
   const qs = data.questions;
@@ -704,6 +717,7 @@ async function viewPractice(kind, id, page, famStr) {
   }
   if (!list.length) { $app.innerHTML = `${topbar({ back, title: esc(title) })}<div class="empty"><b>${L("कोई प्रश्न नहीं", "No questions")}</b></div>`; return; }
   if (kind !== "set") store.set("last", { kind, id });
+  if (!page || page === 1) track(kind === "topic" ? "topic_practice" : kind === "paper" ? "paper_open" : "list_open", kind === "topic" ? { topic: title, subject: nm(topicMeta(id).s) } : { paper: title });
   const pa = store.get(key, {});
   const total = list.length, pages = Math.ceil(total / PER);
   const firstOpen = list.findIndex(q => !pa[q.id]);
@@ -720,7 +734,7 @@ async function viewPractice(kind, id, page, famStr) {
     const c = pa[q.id];
     return `<article class="card q-card" data-qid="${esc(q.id)}" data-i="${idx}">
       <div class="q-top"><span class="q-badge">Q. ${kind === "paper" ? q.n : idx}</span>${qTags(q)}</div>
-      <div class="q-text">${fmt(q.q)}</div>
+      <div class="q-text">${qText(q)}</div>
       <div class="opts">${optionButtons(q, c, { reveal: !!c, disabled: !!c })}</div>
       ${c ? `${q.d ? `<div class="verdict">${L("⚠️ यह प्रश्न रद्द हुआ था — नीचे विश्लेषण देखें", "⚠️ This question was deleted — see analysis below")}</div>` : ""}${explainBlock(q)}` : ""}
       ${qFoot(q)}
@@ -845,7 +859,7 @@ async function route() {
   document.querySelectorAll(".modal-mask, .drawer, .drawer-mask, .resume-bar").forEach(el => el.remove());
   if (typeof Exam !== "undefined") Exam.stopTimer();
   const [name, ...a] = (location.hash.slice(1) || "home").split("~");
-  clearInterval(BANNER_T); closeDrawerMenu(); renderShell(name);
+  clearInterval(BANNER_T); closeDrawerMenu(); renderShell(name); trackPage(name);
   delete $app.dataset.topic;
   try {
     if (name === "b") viewBoard(a[0]);
@@ -857,7 +871,8 @@ async function route() {
     else if (name === "p") await viewPractice("topic", a[0], +a[1] || 0, a[2]);
     else if (name === "r") await viewPractice("paper", a[0], +a[1] || 0);
     else if (name === "pick") await viewPick(a[0], a[1], a[2]);
-    else if (name === "admin") { if (a[0] === SITE.ADMIN_PIN) { store.set("adm", true); toast("Admin ✓"); go("reports"); } else go("home"); }
+    else if (name === "admin") { if (a[0] === SITE.ADMIN_PIN) { store.set("adm", true); toast("Admin ✓"); go("adm~reports"); } else go("home"); }
+    else if (name === "adm") await viewAdmin(a[0] || "reports", a[1]);
     else if (name === "reports") { if (store.get("adm", false) || (window.claude && claude.use)) await viewReports(); else go("home"); }
     else if (name === "l") await viewPractice("set", a[0], +a[1] || 0);
     else if (name === "mock") await viewMock(a[0] ? decodeURIComponent(a[0]) : "");
@@ -890,6 +905,7 @@ document.addEventListener("click", e => {
   if (!a || a.disabled) return;
   const act = a.dataset.act, tid = $app.dataset.topic, v = a.dataset.v;
   if (act === "lang") { LANG = v; store.set("lang", v); if (!document.querySelector(".exam-header")) route(); else toast(v === "en" ? "Language: English" : "भाषा: हिंदी"); }
+  else if (act === "zoom") { const m = document.createElement("div"); m.className = "modal-mask zoom-mask"; m.innerHTML = `<img src="${a.getAttribute("src")}" alt="">`; m.onclick = () => m.remove(); document.body.appendChild(m); return; }
   else if (act === "tadka") tadkaPopup(QINDEX[a.dataset.qid]?.t || (typeof Exam !== "undefined" && Exam.tadkaFor(a.dataset.qid)));
   else if (act === "soon") toast(L("यह जल्द जोड़ा जाएगा", "Coming soon"));
   else if (act === "reload") route();

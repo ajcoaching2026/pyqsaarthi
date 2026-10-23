@@ -30,7 +30,8 @@ const SITE = {
   // ---------- Judiye (social links) — khaali "" wala button nahi dikhega ----------
   SOCIAL: { telegram: "https://t.me/AJHinglishAcademy", youtube: "", instagram: "", whatsapp: "" },
   EMAIL: "ajcoaching2026@gmail.com",     // contact@pyqsaarthi.com chalu hone par yahan badlein
-  VERSION: "1.3",
+  VERSION: "1.4",
+  GA_ID: "",                             // Google Analytics Measurement ID (G-XXXXXXX) — khaali = analytics band
   ADMIN_PIN: "aj2026",                   // reports page: pyqsaarthi.com/#admin~aj2026 (sirf aapke phone/laptop par ek baar kholna)
 
 
@@ -43,14 +44,10 @@ const SITE = {
     OPTION_E: "अनुत्तरित प्रश्न"
   },
 
-  // Report / feedback kahan jaaye: Google Apps Script web-app ka URL (tools/report_apps_script.gs dekhein).
-  // Khali "" rahe to demo me Claude artifact database (ya browser) me save hota hai.
-  REPORT_URL: "",
-
-  // सुधार शीट: Google Sheet → File → Share → Publish to web → (सुधार tab) → CSV → जो link मिले यहाँ डालें।
-  // उस शीट में main Excel जैसी headings हों (QID_Full, Question, Option 1-4, Final_Ans, Explanation, Topic Tadka).
-  // जो cell भरा होगा वही बदलेगा; खाली cell = पुराना ही रहेगा।
-  SUDHAR_CSV: "",
+  // ---------- Admin Google Sheet (tools/admin_apps_script.gs) ----------
+  // API = Apps Script "Web app URL" • PUB = Publish-to-web link • GID = har tab ka gid (setup() ke log se)
+  // Khaali rahe to reports sirf usi phone me, aur Banner/Mentorship/Links neeche config se chalenge.
+  SHEET: { API: "", PUB: "", GID: { sudhar: "", banner: "", mentorship: "", links: "" } },
 
   // Security: live par true rakhein (copy / right-click band)
   PROTECT_CONTENT: false

@@ -803,3 +803,22 @@ body.in-test #bnav { display: none; }
 .card.mk-fam { width: 100%; border: 0; text-align: left; font: inherit; cursor: pointer; }
 .mk-fam .go { color: var(--blue); font-weight: 800; font-size: 22px; }
 .mk-b .btn-sm { padding: 6px 12px; }
+/* v1.4 — pictures in questions, admin panel */
+.q-img { display: block; max-width: 100%; max-height: 360px; margin: 10px auto 2px; border-radius: 10px; border: 1px solid var(--line); background: #fff; cursor: zoom-in; }
+.o-img { display: block; max-width: 100%; max-height: 140px; margin-top: 6px; border-radius: 8px; cursor: zoom-in; }
+.zoom-mask { display: flex; align-items: center; justify-content: center; padding: 10px; background: rgba(0, 0, 0, .85); }
+.zoom-mask img { max-width: 100%; max-height: 92vh; background: #fff; border-radius: 8px; }
+.adm-tabs { display: flex; gap: 6px; overflow-x: auto; margin: 12px 0 6px; scrollbar-width: none; }
+.adm-tabs button { flex: none; border: 0; font: inherit; font-size: 13px; font-weight: 700; border-radius: 20px; padding: 5px 12px; background: #fff; color: var(--muted); cursor: pointer; box-shadow: var(--shadow-card); }
+.adm-tabs button.on { background: var(--blue); color: #fff; }
+.adm-row { display: flex; gap: 8px; margin-top: 8px; } .adm-in { flex: 1; min-width: 0; border: 1.5px solid #bfdbfe; border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 14px; }
+.adm-l { display: block; font-size: 12.5px; font-weight: 700; color: var(--muted); margin-top: 8px; }
+.adm-l input, .adm-l textarea, .adm-l select { display: block; width: 100%; margin-top: 3px; border: 1.5px solid #dbeafe; border-radius: 10px; padding: 7px 9px; font: inherit; font-size: 14.5px; color: var(--ink); background: #fff; box-sizing: border-box; }
+.adm-item { margin-top: 12px; } .adm-ih { display: flex; align-items: center; gap: 10px; } .adm-ih b { flex: 1; min-width: 0; }
+.adm-on { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 4px; }
+.adm-top { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; } .adm-top code { flex: 1; overflow: hidden; text-overflow: ellipsis; } .adm-top span { font-weight: 800; color: var(--red); }
+.rep-row .rr-h { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; } .rep-row .rr-h small { margin-left: auto; color: var(--muted); font-size: 12px; }
+.rep-row .rr-c { margin: 6px 0; font-size: 14px; } .rep-row .rr-q { font-size: 13px; color: #475569; margin-top: 4px; }
+.rep-row .rr-b { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.tip.red { background: var(--red-wash); color: var(--red); } .muted { color: var(--muted); font-size: 13px; }
+.adm-row .btn-sm { white-space: nowrap; flex: none; }

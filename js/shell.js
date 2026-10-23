@@ -3,12 +3,26 @@
 // exam picker popup, Mock / Test Series / Mentorship / Skills / Profile pages
 // =============================================
 
+/* ---------- Google Analytics (sirf jab SITE.GA_ID ho) ---------- */
+window.dataLayer = window.dataLayer || [];
+function gtag() { dataLayer.push(arguments); }
+if (SITE.GA_ID && !/claude|localhost/.test(location.hostname)) {
+  const s = document.createElement("script"); s.async = true; s.src = "https://www.googletagmanager.com/gtag/js?id=" + SITE.GA_ID; document.head.appendChild(s);
+  gtag("js", new Date()); gtag("config", SITE.GA_ID, { send_page_view: false });
+}
+function track(name, params = {}) { try { if (SITE.GA_ID) gtag("event", name, params); } catch { } }
+let TRACK_T = null;
+function trackPage(name) {
+  clearTimeout(TRACK_T);
+  TRACK_T = setTimeout(() => track("page_view", { page_location: location.href, page_path: "/" + (location.hash.slice(1) || "home").replace(/~/g, "/"), page_title: (document.querySelector(".topbar .t b")?.textContent || "Home") + " | PYQ Saarthi", section: name }), 400);
+}
+
 /* ---------- navigation ---------- */
 const NAV = [
   ["home", "🏠", "Home", "Home"], ["mock", "📝", "Mock", "Mock"], ["ts", "🏆", "Test Series", "Test Series"],
   ["skills", "⌨️", "Skills", "Skills"], ["me", "👤", "Profile", "Profile"]
 ];
-const SECTION = { mock: "mock", ts: "ts", skills: "skills", me: "me", info: "me", hist: "me", l: "me", reports: "me", mentor: "mentor" };
+const SECTION = { mock: "mock", ts: "ts", skills: "skills", me: "me", info: "me", hist: "me", l: "me", reports: "me", adm: "me", mentor: "mentor" };
 const sectionOf = name => name === "x" && /^#x~mock~/.test(location.hash) ? "mock" : SECTION[name] || "home";
 
 function sideItems(active) {
@@ -131,7 +145,8 @@ function openPickerModal(first) {
     onTopic: tid => { m.remove(); if (first) store.set("my", EMPTY()); go("t~" + tid); }
   });
   m.querySelector("#pk-full").onclick = () => { box.classList.toggle("full"); st.rerender(); };
-  m.querySelector("#pk-ok").onclick = () => { store.set("my", { fams: st.fams, yrs: st.yrs, last: st.last }); m.remove(); if (!first) toast(L("सेव हो गया ✓", "Saved ✓")); route(); };
+  m.querySelector("#pk-ok").onclick = () => { store.set("my", { fams: st.fams, yrs: st.yrs, last: st.last });
+    st.fams.forEach(f => track("exam_select", { exam: fshort(f), first_visit: first ? "yes" : "no" })); m.remove(); if (!first) toast(L("सेव हो गया ✓", "Saved ✓")); route(); };
   if (first) m.querySelector("#pk-skip").onclick = () => { store.set("my", EMPTY()); m.remove(); route(); };
   else m.onclick = e => { if (e.target === m) m.remove(); };
 }
@@ -295,6 +310,7 @@ function viewMe() {
       <button class="li" data-act="fb-general"><i>⚠️</i>${L("गलती / Feedback भेजें", "Send feedback")}<em>›</em></button>
       ${li("info~about", "🏫", "About Us")}${li("info~privacy", "🔒", "Privacy Policy")}${li("info~terms", "📜", "Terms & Conditions")}
       ${li("info~refund", "💸", "Refund Policy")}${li("info~disclaimer", "⚖️", "Disclaimer")}</div>
+    ${isAdmin() ? `<div class="lh">🛠️ ADMIN</div><div class="list">${li("adm~reports", "🛠️", "Admin Panel")}</div>` : ""}
     <p class="ver">${SITE.NAME_A}${SITE.NAME_B} v${SITE.VERSION} • Made with ❤️ in India</p>`;
 }
 function examHistory() {

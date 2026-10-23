@@ -121,7 +121,7 @@ const Exam = (() => {
       </div>
       <button class="btn btn-primary" id="begin">🚀 Start Exam</button>
     </div>`;
-    document.getElementById("begin").onclick = () => { fresh(base); runExam(); };
+    document.getElementById("begin").onclick = () => { fresh(base); track("test_start", { kind: base.kind, test: base.title }); runExam(); };
   }
 
   function runExam() {
@@ -152,7 +152,7 @@ const Exam = (() => {
     <div class="exam-title">✍️ ${esc(S.header)} ✍️</div>
     <div class="card q-card">
       <div class="q-top"><span class="q-badge">Q. ${S.cur + 1} / ${S.n}</span>${S.kind === "topic" && q.p ? `<span class="q-src">${esc(paperName(q.p, true))}</span>` : ""}</div>
-      <div class="q-text">${fmt(q.q)}</div>
+      <div class="q-text">${qText(q)}</div>
       <div class="opts" id="opts">${optionButtons(q, S.ans[S.cur], { optionE: S.optE })}</div>
       ${qFoot(q)}
     </div>
@@ -258,6 +258,7 @@ const Exam = (() => {
     document.querySelectorAll(".modal-mask").forEach(m => m.remove());
     S.submitted = true; S.submittedAt = Date.now(); S.result = calc(); save();
     document.body.classList.remove("in-test");
+    track("test_submit", { kind: S.kind, test: S.title, score: S.result.score, accuracy: S.result.accuracy });
     try { const r = S.result; trackAnswer(false, r.correct + r.wrong, r.correct); S.qs.forEach((q, i) => { const a = S.ans[i]; if (!q.d && q.a && a >= 1 && a <= 4) noteWrong(q, a === q.a); }); } catch { }
     if (S.kind === "topic") {
       const hk = `th.${S.id}#${S.sig}`, h = store.get(hk, {});
@@ -360,7 +361,7 @@ const Exam = (() => {
       ${chips}
       <div class="card q-card">
         <div class="q-top"><span class="q-badge">Q. ${i + 1}</span>${qTags(S.kind === "topic" ? q : { ...q, p: null })}${S.rev[i] ? `<span class="q-src" style="background:var(--amber-wash);color:var(--amber-ink)">★ Review</span>` : ""}</div>
-        <div class="q-text">${fmt(q.q)}</div>
+        <div class="q-text">${qText(q)}</div>
         <div class="opts">${optionButtons(q, S.ans[i], { optionE: S.optE, reveal: true, disabled: true })}</div>
         ${!S.ans[i] ? `<div class="verdict" style="color:var(--muted)">○ ${L("यह प्रश्न खाली छोड़ा गया", "You left this blank")}</div>` : ""}
         ${explainBlock(q)}
