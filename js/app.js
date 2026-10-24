@@ -363,11 +363,14 @@ function qTags(q) {
   if (q.flag) h += `<span class="q-del">⚠️ ${L("उत्तर-कुंजी जाँच में", "Key under review")}</span>`;
   return h;
 }
+/* explanation / tadka in the chosen language (English if available, else Hindi) */
+const qE = q => (LANG === "en" && q.ee) ? q.ee : q.e;
+const qT = q => (LANG === "en" && q.te) ? q.te : q.t;
 function explainBlock(q) {
   const also = q.rep && q.rep.length ? `<div class="also"><b>${L("यह प्रश्न इनमें भी आया:", "Also asked in:")}</b> ${q.rep.map(x => esc(paperName(x))).join(" • ")}</div>` : "";
   const delNote = q.d && !q.e ? `<div class="del-note">⚠️ <b>${L("यह प्रश्न RSSB द्वारा Delete (रद्द) कर दिया गया था।", "This question was deleted by RSSB.")}</b> ${L("इसका विस्तृत विश्लेषण जल्द जोड़ा जाएगा।", "Detailed analysis coming soon.")}</div>` : "";
   return `<div class="explain"><h4>📖 Explanation</h4>
-    <div class="body">${q.e ? fmt(q.e) : (q.d ? "" : L("इस प्रश्न का Explanation जल्द जोड़ा जाएगा।", "Explanation for this question is coming soon."))}</div>${delNote}${also}
+    <div class="body">${q.e ? fmt(qE(q)) : (q.d ? "" : L("इस प्रश्न का Explanation जल्द जोड़ा जाएगा।", "Explanation for this question is coming soon."))}</div>${delNote}${also}
     <div class="tadka-row"><button class="tadka-btn" data-act="tadka" data-qid="${esc(q.id)}">🌶️ Topic Tadka</button></div>
     ${fbBox(q)}</div>`;
 }
@@ -906,7 +909,7 @@ document.addEventListener("click", e => {
   const act = a.dataset.act, tid = $app.dataset.topic, v = a.dataset.v;
   if (act === "lang") { LANG = v; store.set("lang", v); if (!document.querySelector(".exam-header")) route(); else toast(v === "en" ? "Language: English" : "भाषा: हिंदी"); }
   else if (act === "zoom") { const m = document.createElement("div"); m.className = "modal-mask zoom-mask"; m.innerHTML = `<img src="${a.getAttribute("src")}" alt="">`; m.onclick = () => m.remove(); document.body.appendChild(m); return; }
-  else if (act === "tadka") tadkaPopup(QINDEX[a.dataset.qid]?.t || (typeof Exam !== "undefined" && Exam.tadkaFor(a.dataset.qid)));
+  else if (act === "tadka") { const tq = QINDEX[a.dataset.qid] || (typeof Exam !== "undefined" && Exam.qFor && Exam.qFor(a.dataset.qid)); tadkaPopup(tq ? qT(tq) : ""); }
   else if (act === "soon") toast(L("यह जल्द जोड़ा जाएगा", "Coming soon"));
   else if (act === "reload") route();
   else if (act === "fam-year") { store.set("fy." + $app.dataset.fam, v); viewFamily($app.dataset.fam); }
